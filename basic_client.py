@@ -18,52 +18,55 @@ def send_command(command):
         response = my_socket.recv(4096).decode()
         print(response)
 
-    def create_album(album_name):
-        send_command(f"CREATE_ALBUM {album_name}")
+def create_album(album_name):
+    send_command(f"CREATE_ALBUM {album_name}")
 
-    def get_photo(album_name, photo_name):
-        """This method gets only one photo at a time."""
+def get_photo(album_name, photo_name):
+    """This method gets only one photo at a time."""
 
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as my_socket:
-            my_socket.connect(server_address)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as my_socket:
+        my_socket.connect(server_address)
 
-            # First, the socket asks for the specific photo
-            my_socket.send(f"GET_PHOTOS {album_name} {photo_name}".encode())
+        # First, the socket asks for the specific photo
+        my_socket.send(f"GET_PHOTOS {album_name} {photo_name}".encode())
 
-            # The server sends the requested photo's size as a response
-            response = my_socket.recv(4096).decode()
-            photo_size = 0
-            if response.startswith("Error"):
-                print(response)
-            else:
-                photo_size = int(response)
+        # The server sends the requested photo's size as a response
+        response = my_socket.recv(4096).decode()
+        photo_size = 0
+        if response.startswith("Error"):
+            print(response)
+        else:
+            photo_size = int(response)
 
-                photo_path = os.path.join(library_path, photo_name)
-                with open(photo_path, "wb") as photo_file:
-                    remaining = photo_size
-                    while remaining > 0:
-                        chunk = my_socket.recv(min(4096, remaining))
-                        if not chunk:
-                            break
-                        photo_file.write(chunk)
-                        remaining -= len(chunk)
+            photo_path = os.path.join(library_path, photo_name)
+            # Here, the client receives the photo chunks and writes then to a file
+            with open(photo_path, "wb") as photo_file:
+                remaining = photo_size
+                while remaining > 0:
+                    chunk = my_socket.recv(min(4096, remaining))
+                    if not chunk:
+                        break
+                    photo_file.write(chunk)
+                    remaining -= len(chunk)
+            # The server sends a message that the photo was successfully downloaded
+            my_socket.recv(4096).decode()
 
 
 
 
 
-    def upload_photo(album_name, photo_path):
-        """
-        I am trying to figure out if this way the best way to send photos through sockets.
-        I saw another similar way. For now, this method slices the photo into chunks, and then
-        sends each chunk to the server.
-        """
-        photo_size = os.path.getsize(photo_path)
-        photo_name = os.path.basename(photo_path)
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
-            client.connect(server_address)
-            command = f"UPLOAD_PHOTO {album_name} {photo_name} {photo_size}"
-            client.send(command.encode())
+def upload_photo(album_name, photo_path):
+    """
+    I am trying to figure out if this way the best way to send photos through sockets.
+    I saw another similar way. For now, this method slices the photo into chunks, and then
+    sends each chunk to the server.
+    """
+    photo_size = os.path.getsize(photo_path)
+    photo_name = os.path.basename(photo_path)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
+        client.connect(server_address)
+        command = f"UPLOAD_PHOTO {album_name} {photo_name} {photo_size}"
+        client.send(command.encode())
 
         response = client.recv(4096).decode()
         if response.startswith("Error"):
@@ -76,3 +79,14 @@ def send_command(command):
 
             response = client.recv(4096).decode()
             print(response)
+
+def main():
+    # Create the library folder if it does not already exist
+    os.makedirs(library_path, exist_ok=True)
+    create_album("first_album")
+    upload_photo("first_album", "photo.jpg")
+    get_photo("first_album", "photo.jpg")
+
+if __name__ == "__main__":
+    main()
+
