@@ -1,10 +1,50 @@
 import socket
 import os
+import face_recognition
+import json
+
+
 
 # I am running the app on localhost for now, so the albums path will be on the same computer
 # as the server and client
 album_folder = "albums"
 
+def find_matching_photos(album_name, face_image_path):
+    """
+    This method receives the album name and the path to the face image. then, the method compares the
+    face data to all the faces in the photos in the specific album. The method returns a list of
+    the names of all the photos.
+    right now, the logic is that the client will need only the names of the photos, after that the
+    method get_photos() can be used to get all these photos if needed.
+    """
+    album_path = os.path.join(album_folder, album_name)
+    if not os.path.exists(album_path):
+        return "Error: Album not found"
+
+    try:
+        # Load the provided face image to the library face_recognition
+        target_image = face_recognition.load_image_file(face_image_path)
+        target_encoding = face_recognition.face_encodings(target_image)[0]
+
+        # Storing here all the photos to be returned
+        matching_photos = []
+        for photo_name in os.listdir(album_path):
+            # Analyzing each of the photos in the album
+            photo_path = os.path.join(album_path, photo_name)
+            image = face_recognition.load_image_file(photo_path)
+            encodings = face_recognition.face_encodings(image)
+
+            # Comparing the face data to the target
+            for encoding in encodings:
+                match = face_recognition.compare_faces([target_encoding], encoding)
+                if match[0]:
+                    matching_photos.append(photo_name)
+                    break
+
+        return matching_photos if matching_photos else "Error: No matching photos found."
+
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 def handle_client(client_socket):
     """
@@ -22,7 +62,7 @@ def handle_client(client_socket):
             os.makedirs(album_path, exist_ok=True)
             client_socket.send(f"Album '{album_name}' created.".encode())
 
-        elif command.startswith("GET_PHOTOS"):
+        elif command.startswith("GET_PHOTO"):
             # Splitting the command into parts
             _, album_name, photo_name = command.split(" ", 2)
             photo_path = os.path.join(album_folder, album_name, photo_name)
@@ -30,7 +70,7 @@ def handle_client(client_socket):
             # Again, I am doing it here in the method of sending chunks of the photo
             if os.path.exists(photo_path):
                 photo_size = os.path.getsize(photo_path)
-                client_socket.send(str(photo_size).encode())
+                client_socket.send(photo_size.to_bytes(8, byteorder='big'))
                 with open(photo_path, "rb") as photo_file:
                     while True:
                         chunk = photo_file.read(4096)
@@ -68,6 +108,22 @@ def handle_client(client_socket):
                     photo_file.write(chunk)
                     remaining -= len(chunk)
                 client_socket.send(f"Photo {photo_name} uploaded".encode())
+        elif command.startswith("SEARCH_FACE"):
+            _, album_name, target_face = command.split(" ", 2)
+            target_face_path = os.path.join(album_folder, album_name, target_face)
+
+            if os.path.exists(target_face_path):
+                result = find_matching_photos(album_name, target_face_path)
+                if result.startswith("Error"):
+                    client_socket.send(result.encode())
+                    return
+                else:
+                    # I am using json right now to pack the list of matching photos, maybe there is a better way
+                    json_data = json.dumps(result)
+                    client_socket.send(json_data.encode())
+            else:
+                client_socket.send(b"Error: Target face image not found")
+
     except Exception as e:
         client_socket.send(f"Error: {str(e)}".encode())
     finally:

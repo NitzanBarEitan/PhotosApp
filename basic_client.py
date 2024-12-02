@@ -1,5 +1,6 @@
 import socket
 import os
+import json
 
 # For now, that will be localhost and port 5000
 server_address = ("127.0.0.1", 5000)
@@ -28,28 +29,27 @@ def get_photo(album_name, photo_name):
         my_socket.connect(server_address)
 
         # First, the socket asks for the specific photo
-        my_socket.send(f"GET_PHOTOS {album_name} {photo_name}".encode())
+        my_socket.send(f"GET_PHOTO {album_name} {photo_name}".encode())
 
         # The server sends the requested photo's size as a response
-        response = my_socket.recv(4096).decode()
-        photo_size = 0
-        if response.startswith("Error"):
-            print(response)
-        else:
-            photo_size = int(response)
+        response = my_socket.recv(4096)
+        try:
+            photo_size = int.from_bytes(response, byteorder='big')
+        except ValueError:
+            print(response.decode())
 
-            photo_path = os.path.join(library_path, photo_name)
-            # Here, the client receives the photo chunks and writes then to a file
-            with open(photo_path, "wb") as photo_file:
-                remaining = photo_size
-                while remaining > 0:
-                    chunk = my_socket.recv(min(4096, remaining))
-                    if not chunk:
-                        break
-                    photo_file.write(chunk)
-                    remaining -= len(chunk)
-            # The server sends a message that the photo was successfully downloaded
-            my_socket.recv(4096).decode()
+        photo_path = os.path.join(library_path, photo_name)
+        # Here, the client receives the photo chunks and writes then to a file
+        with open(photo_path, "wb") as photo_file:
+            remaining = photo_size
+            while remaining > 0:
+                chunk = my_socket.recv(min(4096, remaining))
+                if not chunk:
+                    break
+                photo_file.write(chunk)
+                remaining -= len(chunk)
+        # The server sends a message that the photo was successfully downloaded
+        my_socket.recv(4096).decode()
 
 
 
@@ -79,6 +79,16 @@ def upload_photo(album_name, photo_path):
 
             response = client.recv(4096).decode()
             print(response)
+def find_faces(album_name, target_photo):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
+        client.connect(server_address)
+        command = f"SEARCH_FACE {album_name} {target_photo}"
+        client.send(command.encode())
+
+        response = client.recv(4096).decode()
+        matching_lst = json.loads(response)
+        for photo in matching_lst:
+            get_photo(album_name, photo)
 
 def main():
     # Create the library folder if it does not already exist
