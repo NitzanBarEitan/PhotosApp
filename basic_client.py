@@ -77,11 +77,11 @@ def upload_photo(album_name, photo_path):
                 while chunk := photo_file.read(4096):
                     client.send(chunk)
 
-            response = client.recv(4096).decode()
+            response = client.recv(4096).decode() # CR: what if the response is longer? variable length? multiple response have been sent, and you only want to read the first one?
             print(response)
 def find_faces(album_name, target_photo):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
-        client.connect(server_address)
+        client.connect(server_address) # CR: this should be a CLI paramater, with the default values you already have. Read up online about how to use the Argparse module.
         command = f"SEARCH_FACE {album_name} {target_photo}"
         client.send(command.encode())
 

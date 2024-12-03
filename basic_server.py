@@ -1,8 +1,9 @@
 import socket
 import os
-import face_recognition
+import face_recognition # CR: this should be in the requirements.txt file
 import json
 
+# CR: Typing! use python typing. it makes the code much more understandable and much less error prone.
 
 
 # I am running the app on localhost for now, so the albums path will be on the same computer
@@ -19,7 +20,7 @@ def find_matching_photos(album_name, face_image_path):
     """
     album_path = os.path.join(album_folder, album_name)
     if not os.path.exists(album_path):
-        return "Error: Album not found"
+        return "Error: Album not found" # CR: multiple return types is bad python. you should return an option.
 
     try:
         # Load the provided face image to the library face_recognition
@@ -43,7 +44,7 @@ def find_matching_photos(album_name, face_image_path):
 
         return matching_photos if matching_photos else "Error: No matching photos found."
 
-    except Exception as e:
+    except Exception as e: # CR: blanket catching all errors is bad code. catch only the specific errors you want to handle.
         return f"Error: {str(e)}"
 
 def handle_client(client_socket):
@@ -55,7 +56,7 @@ def handle_client(client_socket):
     """
 
     try:
-        command = client_socket.recv(1024).decode().strip()
+        command = client_socket.recv(1024).decode().strip() # CR: what if multiple commands were sent? this would read all of them.
         if command.startswith("CREATE_ALBUM"):
             album_name = command.split(" ", 1)[1]
             album_path = os.path.join(album_folder, album_name)
@@ -70,7 +71,7 @@ def handle_client(client_socket):
             # Again, I am doing it here in the method of sending chunks of the photo
             if os.path.exists(photo_path):
                 photo_size = os.path.getsize(photo_path)
-                client_socket.send(photo_size.to_bytes(8, byteorder='big'))
+                client_socket.send(photo_size.to_bytes(8, byteorder='big')) # Very good. Sending the size before the message is a much more generic method, that you should use everywhere in the code. Move it to a different function, that sends the size of the data to be sent first before sending the data.
                 with open(photo_path, "rb") as photo_file:
                     while True:
                         chunk = photo_file.read(4096)
@@ -102,7 +103,7 @@ def handle_client(client_socket):
             with open(photo_path, "wb") as photo_file:
                 remaining = photo_size
                 while remaining > 0:
-                    chunk = client_socket.recv(min(4096, remaining))
+                    chunk = client_socket.recv(min(4096, remaining)) # CR: this is something you will do a lot in the client and server. export it to a function in a different file.
                     if not chunk:
                         break
                     photo_file.write(chunk)
