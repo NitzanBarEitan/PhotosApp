@@ -3,22 +3,21 @@ import json
 import os
 
 class JSONSocket:
-    def __init__(self, server_address, sock=None):
+    def __init__(self, server_address: tuple, sock=None):
         """The constructor of this class initializes a socket if the user of this class 
         did not provide one"""
         self.server_address = server_address
         self.sock = sock or socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    def __enter__(self, server_address: tuple):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connect(server_address)
+    def __enter__(self):
+        self.connect(self.server_address)
         return self
     
     def __exit__(self, exc_type, exc_value, traceback):
         if self.sock:
             self.close()
 
-    def connect(self, address):
+    def connect(self, address: tuple):
         self.sock.connect(address)
 
     def bind(self, address):

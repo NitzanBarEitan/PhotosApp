@@ -57,9 +57,13 @@ def handle_client(client_socket):
 
         if action == "CREATE_ALBUM":
             album_name = command.get("album_name")
+            print("got album name")
             album_path = os.path.join(album_folder, album_name)
+            print("got album path")
             os.makedirs(album_path, exist_ok=True)
+            print("created album")
             clinet_json.send_json(f"Album '{album_name}' created.")
+            print("sent response")
 
         elif action == "GET_PHOTO":
             album_name = command.get("album_name")
