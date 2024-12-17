@@ -35,7 +35,7 @@ def upload_photo(album_name, photo_path):
 
     photo_size = os.path.getsize(photo_path)
     photo_name = os.path.basename(photo_path)
-    with JSONSocket(server_address) as client:
+    with JSONSocket(server_address) as client: # CR: here, is a type error, due to misimplementation of __enter__
         command = {
             "action": "UPLOAD_PHOTO",
             "album_name": album_name,

@@ -44,13 +44,13 @@ class JSONSocket:
     def receive_json(self):
         try:
             # First, recieve the size of the JSON data
-            size_data = self.sock.recv(4)
+            size_data = self.sock.recv(4) # CR: next comment applies here, just matters less
             if not size_data:
                 raise RuntimeError("No JSON-size data sent")
             size = int.from_bytes(size_data, byteorder='big')
 
             # Then receive the actual JSON data
-            json_data = self.sock.recv(size).decode()
+            json_data = self.sock.recv(size).decode() # CR: recv might not receive all of the bytes requested, this should be a for loop
             return json.loads(json_data)
         except (OSError, json.JSONDecodeError) as e:
             raise RuntimeError(f"Error receiving JSON data: {e}")
@@ -74,7 +74,7 @@ class JSONSocket:
                         self.send_json(chunk)
                 self.send_json("Photo downloaded")
             else:
-                self.send_json(b"Error: Photo not found")
+                self.send_json(b"Error: Photo not found") # CR: once you send bytes, the other time a string, this should be the same
         except(OSError, json.JSONDecodeError) as e:
             raise RuntimeError(f"Error sending photo: {e}")
         
@@ -89,7 +89,7 @@ class JSONSocket:
             with open(photo_path, "wb") as photo_file:
                 remaining = photo_size
                 while remaining > 0:
-                    chunk = self.receive_json()
+                    chunk = self.receive_json() # CR: this while loop should not be here, it should be in receive_json. The underlying protocol supports sending arbitrary size messages
                     if not chunk:
                         break
                     photo_file.write(chunk)
